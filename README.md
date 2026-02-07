@@ -1,105 +1,107 @@
-# Mini-DFS: Run Guide (Windows)
+# Mini-DFS: Project Run Guide (Windows)
 
-Ye project ek simplified "Google File System" hai jo aapke local computer par distributed system simulate karta hai.
+This project is a simplified **Distributed File System** (inspired by GFS/Hadoop) that simulates distributed storage on your local machine using standard TCP sockets.
 
-Follow these steps exactly to run and present the project.
+Follow these steps exactly to run and demonstrate the project features.
 
 ---
 
-## 1. Build The Project 🛠️
-Sabse pehle code ko `.exe` files mein convert karna hoga.
+## 1. Build The Project
+First, compile the source code into .exe executables.
 
-1.  Project folder open karein command prompt mein.
-2.  Run karein:
+1.  Open the project folder in Command Prompt or PowerShell.
+2.  Run the build script:
     ```powershell
     .\build.bat
     ```
-    Isse `bin` folder banega jisme `namenode.exe`, `datanode.exe`, aur `client.exe` honge.
+    This will create a `bin` folder containing `namenode.exe`, `datanode.exe`, and `client.exe`.
 
 ---
 
-## 2. Start Servers (3 Alag Windows Chahiye) 🖥️🖥️🖥️
+## 2. Start Servers (Requires 3 Separate Windows)
 
-Aapko 3 alag-alag **PowerShell** ya **CMD** windows kholni hongi.
+You need to open 3 separate **PowerShell** or **CMD** windows.
 
 ### Terminal 1: START NAMENODE (The Master)
-Ye "Manager" hai jo sab control karega. **Is window ko khula rakhna aur logs dekhna.**
+This is the central manager that tracks file locations and monitors DataNode health.
+**Keep this window open to see logs.**
 ```powershell
 .\bin\namenode.exe
 ```
+*(Output: "NameNode listening on port 9000")*
 
 ### Terminal 2: START DATANODE (The Storage)
-Ye "Godown" hai jahan file save hogi.
+This is the worker node where actual file data is stored.
 ```powershell
 .\bin\datanode.exe 8001 "C:\Temp\dn1"
 ```
+*(Output: "DataNode listening... Registered new DataNode")*
+*(Check the NameNode window - it should confirm the registration)*
 
-### Terminal 3: START CLIENT (User)
-Yahan se hum commands denge.
+### Terminal 3: START CLIENT (The User)
+This is where we run commands to upload/download files.
 
 ---
 
-## 3. How to Upload & Download Files 📂
+## 3. How to Upload & Download Files
 
-**Step A: Ek test file banao**
-Client terminal mein:
+**Step A: Create a Test File**
+In the Client terminal:
 ```powershell
 echo "My Secret Data" > secret.txt
 ```
 
-**Step B: Upload (PUT) ⬆️**
-File ko DFS par `secret.txt` naam se upload karo:
+**Step B: Upload (PUT)**
+Upload the file to the DFS as `cloud_secret.txt`:
 ```powershell
 .\bin\client.exe put secret.txt /cloud_secret.txt
 ```
-*(Server bolega: "Created. Uploading... Block 1000 at 127.0.0.1:8001")*
+*(Server Log: "Created. Uploading... Block 1000 at 127.0.0.1:8001")*
 
-**Step C: List Files (LS) 📋**
-Check karo server pe kya hai:
+**Step C: List Files (LS)**
+Check what files are stored on the server:
 ```powershell
 .\bin\client.exe ls
 ```
 *(Output: "- /cloud_secret.txt (1 blocks)")*
 
-**Step D: Download (GET) ⬇️**
-File wapas download karo naye naam se:
+**Step D: Download (GET)**
+Download the file back to your local machine:
 ```powershell
 .\bin\client.exe get /cloud_secret.txt downloaded.txt
 ```
-*(Check karo: `type downloaded.txt`, wahi same data hona chahiye)*
+*(Verify: `type downloaded.txt` should match the original content)*
 
 ---
 
-## 4. 🔥 FAULT TOLERANCE TEST (Teacher Ko Dikhane Ke Liye) 🔥
+## 4. FAULT TOLERANCE TEST (Use for Demo)
 
-Step-by-step procedure to show "Self-Healing":
+Step-by-step procedure to demonstrate the "Self-Healing" capability:
 
 **Phase 1: Setup**
-1.  **Terminal 1:** `.\bin\namenode.exe` chalao.
-2.  **Terminal 2:** `.\bin\datanode.exe 8001 "C:\Temp\dn1"` chalao.
-    *   NameNode bolega: *"Registered new DataNode: 127.0.0.1:8001"*
+1.  **Terminal 1:** Run `.\bin\namenode.exe`.
+2.  **Terminal 2:** Run `.\bin\datanode.exe 8001 "C:\Temp\dn1"`.
+    *   NameNode says: *"Registered new DataNode: 127.0.0.1:8001"*
 
-**Phase 2: Success**
-3.  **Terminal 3 (Client):** Ek file upload karo.
+**Phase 2: Success Check**
+3.  **Terminal 3 (Client):** Upload a file to verify system is working.
     ```powershell
     echo "Data 1" > file1.txt
     .\bin\client.exe put file1.txt /success.txt
     ```
-    *(Ye Success hoga kyunki DataNode zinda hai)*
+    *(Success)*
 
 **Phase 3: The Crash (Simulation)**
-4.  **Terminal 2 par jao (DataNode)** aur `Ctrl + C` dabao ya window band kar do.
-    *(Ab DataNode mar chuka hai)*
-5.  **Wait 10 Seconds...** NameNode terminal dekho.
-    *(NameNode bolega: "**ALERT: DataNode 127.0.0.1:8001 is DEAD**")*
+4.  **Go to Terminal 2 (DataNode)** and press `Ctrl + C` or close the window.
+    *(The DataNode is now dead)*
+5.  **Wait 10 Seconds...** Watch the NameNode terminal.
+    *(NameNode Log: "**ALERT: DataNode 127.0.0.1:8001 is DEAD**")*
 
-**Phase 4: Failure Handling**
-6.  **Terminal 3 (Client):** Ab nayi file upload karne ki koshish karo.
+**Phase 4: Verify Failure Handling**
+6.  **Terminal 3 (Client):** Try to upload a new file.
     ```powershell
     echo "Data 2" > file2.txt
     .\bin\client.exe put file2.txt /fail.txt
     ```
-7.  **Result:** Client bolega *"ERROR: No active DataNodes found"* ya upload fail ho jayega.
-    *(Ye proof hai ki NameNode ne dead node par data bhejna band kar diya!)*
-
----
+7.  **Result:** The Client will report an error or fail to upload because no active nodes are available.
+    *(This proves the NameNode successfully detected the failure and stopped routing data to the dead node!)*
